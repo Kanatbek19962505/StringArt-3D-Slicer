@@ -1,11 +1,5 @@
 🏷️ Proposed Names
-G-Weaver 3D (Professional & Technical)
-
-FilamentArt Studio (Creative & Catchy)
-
-ThreadPath Pro (Engineering focus)
-
-StringSlice (Perfect for the 3D printing community)
+G-Weaver 3D AL-JIBAL
 
 📝 Program Description
 [Name] is a specialized G-code generator that transforms 2D raster images into intricate String Art masterpieces using a standard 3D printer.
