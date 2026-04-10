@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D String Art PRO</title>
+    <style>
+        /* --- СТИЛИ СТАРТОВОГО ЭКРАНА --- */
+        body {
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            min-height: 100vh; background-color: #121212; margin: 0; font-family: sans-serif; color: #ededed;
+        }
+
+        #splashScreen {
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            width: 100%; height: 100vh; position: fixed; top: 0; left: 0; z-index: 100;
+            background-color: #121212; transition: opacity 1s ease-out;
+        }
+
+        #startBtn {
+            padding: 15px 30px; font-size: 18px; color: #121212; background-color: #afca0b;
+            border: none; border-radius: 8px; cursor: pointer; transition: transform 0.2s, background-color 0.2s;
+            position: absolute; z-index: 10; font-weight: bold;
+        }
+
+        #startBtn:hover { transform: scale(1.05); background-color: #f6a316; }
+
+        svg { max-width: 90%; max-height: 90vh; }
+        svg path, svg circle { transform-box: fill-box; transform-origin: center; opacity: 0; }
+
+        @keyframes fadeAndScale { 0% { opacity: 0; transform: scale(0.8) translateY(20px); } 100% { opacity: 1; transform: scale(1) translateY(0); } }
+        @keyframes popIn { 0% { opacity: 0; transform: scale(0); } 70% { opacity: 1; transform: scale(1.3); } 100% { opacity: 1; transform: scale(1); } }
+        @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.2); fill: #fff; } }
+
+        .is-animated path.cls-1 { animation: fadeAndScale 1s ease-out forwards; animation-delay: 0.2s; }
+        .is-animated path.cls-2 { animation: fadeAndScale 1s ease-out forwards; animation-delay: 0.6s; }
+        .is-animated path.cls-3 { animation: fadeAndScale 1s ease-out forwards; animation-delay: 1.5s; }
+        .is-animated path.cls-1:last-of-type { animation: fadeAndScale 1s ease-out forwards; animation-delay: 1.7s !important; }
+        .is-animated circle { animation: popIn 0.5s ease-out forwards, pulse 3s infinite ease-in-out; }
+        .is-animated circle:nth-of-type(1) { animation-delay: 0.8s, 2.0s; }
+        .is-animated circle:nth-of-type(2) { animation-delay: 0.9s, 2.1s; }
+        .is-animated circle:nth-of-type(3) { animation-delay: 1.0s, 2.2s; }
+        .is-animated circle:nth-of-type(4) { animation-delay: 1.1s, 2.3s; }
+        .is-animated circle:nth-of-type(5) { animation-delay: 1.2s, 2.4s; }
+        .is-animated circle:nth-of-type(6) { animation-delay: 1.3s, 2.5s; }
+        .is-animated circle:nth-of-type(7) { animation-delay: 1.4s, 2.6s; }
+        .is-animated circle:nth-of-type(8) { animation-delay: 1.5s, 2.7s; }
+        .is-animated circle:nth-of-type(n+9) { animation-delay: 1.6s, 2.8s; }
+
+        /* --- СТИЛИ ПРИЛОЖЕНИЯ --- */
+        #appScreen {
+            display: none; width: 100%; max-width: 1000px; padding: 20px; box-sizing: border-box;
+            background-color: #1e1e1e; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            margin: 20px 0; opacity: 0; transition: opacity 1s ease-in;
+        }
+
+        h2 { text-align: center; color: #afca0b; margin-top: 0; }
+
+        .controls-wrapper { display: flex; gap: 20px; flex-wrap: wrap; }
+        
+        .controls {
+            flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 15px;
+            background: #2a2a2a; padding: 20px; border-radius: 8px; min-width: 320px;
+        }
+
+        .canvas-container {
+            flex: 1.2; display: flex; flex-direction: column; align-items: center;
+            justify-content: flex-start; min-width: 320px; background: #2a2a2a; padding: 20px; border-radius: 8px;
+        }
+
+        label { font-size: 12px; font-weight: bold; color: #ededed; }
+        input, select { width: 100%; padding: 8px; margin-top: 5px; box-sizing: border-box; border-radius: 4px; border: 1px solid #444; background: #333; color: white; }
+        input[type="range"] { padding: 0; }
+        
+        .full-width { grid-column: span 2; }
+        
+        button.action-btn {
+            width: 100%; padding: 12px; background-color: #afca0b; color: #121212; border: none;
+            border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: bold; transition: 0.2s;
+        }
+        button.action-btn:hover:not(:disabled) { background-color: #f6a316; }
+        button:disabled { background-color: #555; cursor: not-allowed; color: #888; }
+        
+        canvas { border: 2px solid #afca0b; max-width: 100%; background: #fff; border-radius: 4px; }
+        
+        .status-box { margin-top: 15px; padding: 10px; background: #333; border-radius: 4px; font-family: monospace; font-size: 14px; color: #afca0b; text-align: center; width: 100%; box-sizing: border-box;}
+        
+        /* Блок предпросмотра */
+        .preview-box { width: 100%; margin-top: 15px; display: none; background: #333; padding: 15px; border-radius: 4px; box-sizing: border-box; text-align: center;}
+        .preview-box label { color: #f6a316; font-size: 14px; display: block; margin-bottom: 10px;}
+
+        .downloads { display: flex; flex-direction: column; gap: 10px; margin-top: 15px; width: 100%; }
+        .download-btn { padding: 10px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; color: white; text-align: center; transition: 0.2s; }
+        .download-btn:hover { filter: brightness(1.2); }
+        
+        .btn-mono { background: #555; }
+        .btn-c { background: #00AEEF; color: black; }
+        .btn-m { background: #EC008C; }
+        .btn-y { background: #FFF200; color: black; }
+        .btn-k { background: #222; border: 1px solid #555; }
+    </style>
+</head>
+<body>
+
+    <div id="splashScreen">
+        <button id="startBtn">START</button>
+        <svg xmlns="http://www.w3.org/2000/svg" id="logoSvg" viewBox="0 0 596.57 841.89">
+            <defs><style>.cls-1{fill:#afca0b}.cls-2{fill:#f6a316}.cls-3{fill:#ededed}</style></defs>
+            <path d="M0 0h596.57v841.89H0z" style="fill:#212121"/>
+            <path d="m143.655 436.053 308.236-177.96.995 1.723-308.236 177.96z" class="cls-1"/>
+            <path d="m143.667 259.78.995-1.724 308.236 177.96-.995 1.723z" class="cls-1"/>
+            <path d="M297.29 169.94h1.99v355.92h-1.99z" class="cls-1"/>
+            <path d="M298.29 476.33 186.52 411.8V282.74l111.77-64.53 111.77 64.53V411.8zm-109.12-66.06 109.12 63 109.12-63v-126l-109.12-63-109.12 63z" class="cls-2"/>
+            <path d="m298.29 409.31-53.73-31.02v-62.04l53.73-31.02 53.73 31.02v62.04zm-51.08-32.55 51.08 29.49 51.08-29.49v-58.98l-51.08-29.49-51.08 29.49z" class="cls-2"/>
+            <circle cx="298.29" cy="347.27" r="8.44" class="cls-1"/>
+            <circle cx="298.29" cy="169.94" r="6.98" class="cls-1"/><circle cx="298.29" cy="525.86" r="4.19" class="cls-1"/><circle cx="452.41" cy="258.92" r="4.19" class="cls-1"/><circle cx="452.41" cy="436.88" r="6.98" class="cls-1"/><circle cx="144.17" cy="258.92" r="4.19" class="cls-1"/><circle cx="144.17" cy="436.88" r="6.98" class="cls-1"/><circle cx="298.29" cy="220.18" r="5" class="cls-1"/><circle cx="298.29" cy="474.83" r="3" class="cls-1"/><circle cx="408.56" cy="283.84" r="3" class="cls-1"/><circle cx="408.56" cy="411.17" r="5" class="cls-1"/><circle cx="188.02" cy="283.84" r="4.28" class="cls-1"/><circle cx="188.02" cy="411.17" r="5" class="cls-1"/><circle cx="298.29" cy="286.76" r="4.6" class="cls-2"/><circle cx="298.29" cy="407.78" r="6.14" class="cls-2"/><circle cx="350.69" cy="317.03" r="6.14" class="cls-2"/><circle cx="350.69" cy="377.59" r="4.6" class="cls-2"/><circle cx="245.88" cy="317.03" r="6.14" class="cls-2"/><circle cx="245.88" cy="377.59" r="4.6" class="cls-2"/>
+            <path d="M178.73 651.53h-6.64v-22.34h-21.28v22.34h-6.64v-51.32h34.57v51.32Zm-27.92-28.99h21.28v-15.7h-21.28zM223.42 651.53h-34.57V600.2h6.64v44.68h27.93zM233.53 622.54h23.4v6.64h-23.4zM301.61 651.53h-34.57v-23.4h6.64v16.75h21.28v-38.04h-27.92v-6.64h34.57zM311.72 600.2h6.64v51.32h-6.64zM363.04 651.53h-34.57v-51.32h34.57zm-27.92-6.65h21.28v-15.7h-21.28zm0-22.34h21.28v-15.7h-21.28zM407.73 651.53h-6.64v-22.34h-21.28v22.34h-6.64v-51.32h34.57v51.32Zm-27.93-28.99h21.28v-15.7H379.8zM452.41 651.53h-34.57V600.2h6.64v44.68h27.93z" class="cls-3"/>
+            <path d="M144.17 678.76v-10.29h2.08v10.29zM153.03 678.76v-10.29h2.02l4.21 6.87v-6.87h1.93v10.29h-2.08l-4.15-6.71v6.71zM170.48 678.76v-8.54h-3.05v-1.74h8.17v1.74h-3.04v8.54zM181.73 678.76v-10.29h7.63v1.74h-5.55v2.28h5.16v1.73h-5.16v2.8h5.75v1.73h-7.82ZM196.1 678.76v-10.29h4.37c1.1 0 1.9.09 2.4.28s.9.51 1.2.99q.45.705.45 1.62c0 .77-.23 1.41-.68 1.91s-1.13.82-2.03.95c.45.26.82.55 1.11.86s.69.87 1.18 1.67l1.26 2.01h-2.48l-1.5-2.24c-.53-.8-.9-1.3-1.09-1.51-.2-.21-.4-.35-.62-.43s-.57-.12-1.05-.12h-.42v4.29h-2.08Zm2.08-5.94h1.54c1 0 1.62-.04 1.87-.13.25-.08.44-.23.58-.44s.21-.46.21-.77c0-.35-.09-.63-.28-.84s-.45-.35-.78-.4c-.17-.02-.67-.04-1.52-.04h-1.62v2.61ZM211.28 678.76v-10.29h2.02l4.21 6.87v-6.87h1.93v10.29h-2.08l-4.15-6.71v6.71zM235.69 678.76h-2.26l-.9-2.34h-4.11l-.85 2.34h-2.2l4.01-10.29h2.2l4.12 10.29Zm-3.82-4.07-1.42-3.82-1.39 3.82zM242.83 678.76v-8.54h-3.05v-1.74h8.17v1.74h-3.04v8.54zM254.01 678.76v-10.29h2.08v10.29zM262.43 673.68c0-1.05.16-1.93.47-2.64q.345-.78.96-1.41c.4-.42.85-.72 1.33-.93.64-.27 1.38-.41 2.22-.41 1.52 0 2.73.47 3.64 1.41s1.36 2.25 1.36 3.92-.45 2.96-1.35 3.9-2.11 1.41-3.62 1.41-2.75-.47-3.65-1.4-1.35-2.22-1.35-3.85Zm2.14-.07c0 1.16.27 2.05.81 2.65s1.22.9 2.05.9 1.51-.3 2.04-.89c.53-.6.8-1.49.8-2.68s-.26-2.06-.77-2.64c-.52-.58-1.2-.87-2.06-.87s-1.55.29-2.07.88-.79 1.47-.79 2.66ZM278.83 678.76v-10.29h2.02l4.21 6.87v-6.87h1.93v10.29h-2.08l-4.15-6.71v6.71zM303.25 678.76h-2.26l-.9-2.34h-4.11l-.85 2.34h-2.2l4.01-10.29h2.2l4.12 10.29Zm-3.82-4.07-1.42-3.82-1.39 3.82zM309.19 678.76v-10.2h2.08v8.47h5.16v1.73zM333.53 678.76v-8.54h-3.05v-1.74h8.17v1.74h-3.04v8.54zM344.78 678.76v-10.29h7.63v1.74h-5.55v2.28h5.16v1.73h-5.16v2.8h5.75v1.73h-7.82ZM365.73 674.98l2.01.64c-.31 1.12-.82 1.96-1.54 2.5-.72.55-1.63.82-2.73.82-1.37 0-2.49-.47-3.37-1.4s-1.32-2.21-1.32-3.83c0-1.71.44-3.04 1.33-3.99.88-.95 2.05-1.42 3.49-1.42 1.26 0 2.28.37 3.07 1.12q.705.66 1.05 1.89l-2.06.49c-.12-.53-.37-.95-.76-1.26s-.86-.46-1.41-.46c-.76 0-1.38.27-1.86.82-.47.55-.71 1.43-.71 2.66 0 1.3.23 2.23.7 2.78s1.08.83 1.82.83c.55 0 1.03-.18 1.42-.53.4-.35.68-.9.86-1.66ZM374.31 678.76v-10.29h2.08v4.05h4.07v-4.05h2.08v10.29h-2.08v-4.5h-4.07v4.5zM404.82 674.98l2.01.64c-.31 1.12-.82 1.96-1.54 2.5-.72.55-1.63.82-2.73.82-1.37 0-2.49-.47-3.37-1.4s-1.32-2.21-1.32-3.83c0-1.71.44-3.04 1.33-3.99.88-.95 2.05-1.42 3.49-1.42 1.26 0 2.28.37 3.07 1.12q.705.66 1.05 1.89l-2.06.49c-.12-.53-.37-.95-.76-1.26s-.86-.46-1.41-.46c-.76 0-1.38.27-1.86.82-.47.55-.71 1.43-.71 2.66 0 1.3.23 2.23.7 2.78s1.08.83 1.82.83c.55 0 1.03-.18 1.42-.53.4-.35.68-.9.86-1.66ZM412.98 673.68c0-1.05.16-1.93.47-2.64q.345-.78.96-1.41c.4-.42.85-.72 1.33-.93.64-.27 1.38-.41 2.22-.41 1.52 0 2.73.47 3.64 1.41s1.36 2.25 1.36 3.92-.45 2.96-1.35 3.9-2.11 1.41-3.62 1.41-2.75-.47-3.65-1.4-1.35-2.22-1.35-3.85Zm2.14-.07c0 1.16.27 2.05.81 2.65s1.22.9 2.05.9 1.51-.3 2.04-.89c.53-.6.8-1.49.8-2.68s-.26-2.06-.77-2.64c-.52-.58-1.2-.87-2.06-.87s-1.55.29-2.07.88-.79 1.47-.79 2.66ZM429.37 678.76v-10.29h4.37c1.1 0 1.9.09 2.4.28s.9.51 1.2.99q.45.705.45 1.62c0 .77-.23 1.41-.68 1.91s-1.13.82-2.03.95c.45.26.82.55 1.11.86s.69.87 1.18 1.67l1.26 2.01h-2.48l-1.5-2.24c-.53-.8-.9-1.3-1.09-1.51-.2-.21-.4-.35-.62-.43s-.57-.12-1.05-.12h-.42v4.29h-2.08Zm2.08-5.94h1.54c1 0 1.62-.04 1.87-.13.25-.08.44-.23.58-.44s.21-.46.21-.77c0-.35-.09-.63-.28-.84s-.45-.35-.78-.4c-.17-.02-.67-.04-1.52-.04h-1.62v2.61ZM444.53 678.76v-10.29h3.33c1.26 0 2.09.05 2.47.15.59.15 1.08.49 1.48 1.01s.6 1.18.6 2c0 .63-.12 1.16-.34 1.59-.23.43-.52.77-.87 1.01-.35.25-.71.41-1.08.49-.5.1-1.21.15-2.15.15h-1.35v3.88h-2.08Zm2.07-8.55v2.92h1.14c.82 0 1.37-.05 1.64-.16s.49-.28.65-.5c.16-.23.23-.5.23-.8q0-.555-.33-.93c-.22-.24-.5-.39-.84-.46-.25-.05-.75-.07-1.49-.07z" class="cls-1"/>
+        </svg>
+    </div>
+
+    <div id="appScreen">
+        <h2>3D String Art PRO</h2>
+        
+        <div class="controls-wrapper">
+            <div class="controls">
+                <div class="full-width">
+                    <label>Изображение:</label>
+                    <input type="file" id="imageInput" accept="image/*">
+                </div>
+                
+                <div>
+                    <label>Яркость: <span id="brightVal">100%</span></label>
+                    <input type="range" id="imgBrightness" min="50" max="200" value="100">
+                </div>
+                <div>
+                    <label>Контрастность: <span id="contrVal">100%</span></label>
+                    <input type="range" id="imgContrast" min="50" max="250" value="100">
+                </div>
+
+                <div>
+                    <label>Форма рамки:</label>
+                    <select id="shapeType">
+                        <option value="circle">Круг</option>
+                        <option value="triangle">Треугольник</option>
+                        <option value="square">Квадрат</option>
+                        <option value="pentagon">Пятиугольник</option>
+                        <option value="hexagon">Шестиугольник</option>
+                        <option value="octagon">Восьмиугольник</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Режим цвета:</label>
+                    <select id="colorMode">
+                        <option value="mono">Черно-белый (1 G-code)</option>
+                        <option value="cmyk">CMYK (4 G-code файла)</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Размер печати X/Y (мм):</label>
+                    <input type="number" id="printSize" value="200">
+                </div>
+                <div>
+                    <label>Количество "гвоздей":</label>
+                    <input type="number" id="numPins" value="250">
+                </div>
+                <div>
+                    <label>Количество нитей:</label>
+                    <input type="number" id="numLines" value="1500">
+                </div>
+                <div>
+                    <label>Поднятие Z на нить (мм):</label>
+                    <input type="number" id="zHop" value="0.0005" step="0.0001">
+                </div>
+                
+                <div class="full-width">
+                    <button class="action-btn" id="generateBtn" disabled>Сгенерировать G-Code</button>
+                </div>
+            </div>
+
+            <div class="canvas-container">
+                <canvas id="canvas" width="500" height="500"></canvas>
+                
+                <progress id="progressBar" value="0" max="100" style="width: 100%; margin-top: 15px; display: none;"></progress>
+                <div class="status-box" id="status">Ожидание картинки...</div>
+                
+                <div class="preview-box" id="previewBox">
+                    <label>Предпросмотр нитей: <span id="previewText">0</span></label>
+                    <input type="range" id="previewSlider" min="0" max="100" value="0" style="width: 100%;">
+                </div>
+
+                <div class="downloads" id="downloadsContainer"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- АНИМАЦИЯ СТАРТА ---
+        const startBtn = document.getElementById('startBtn');
+        const splashScreen = document.getElementById('splashScreen');
+        const appScreen = document.getElementById('appScreen');
+
+        startBtn.addEventListener('click', function() {
+            this.style.display = 'none';
+            document.getElementById('logoSvg').classList.add('is-animated');
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            function playSound(delaySeconds, startFreq, endFreq) {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(startFreq, audioCtx.currentTime + delaySeconds);
+                osc.frequency.exponentialRampToValueAtTime(endFreq, audioCtx.currentTime + delaySeconds + 0.1);
+                gain.gain.setValueAtTime(0, audioCtx.currentTime + delaySeconds);
+                gain.gain.linearRampToValueAtTime(0.5, audioCtx.currentTime + delaySeconds + 0.02);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + delaySeconds + 0.1);
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.start(audioCtx.currentTime + delaySeconds); osc.stop(audioCtx.currentTime + delaySeconds + 0.15);
+            }
+            playSound(0.2, 500, 150); playSound(0.6, 700, 250); playSound(1.5, 900, 300); playSound(1.6, 600, 200);
+
+            setTimeout(() => {
+                splashScreen.style.opacity = '0';
+                setTimeout(() => {
+                    splashScreen.style.display = 'none';
+                    appScreen.style.display = 'block';
+                    setTimeout(() => appScreen.style.opacity = '1', 50); 
+                }, 1000);
+            }, 3500);
+        });
+
+        // --- ЛОГИКА ГЕНЕРАТОРА ---
+        const imageInput = document.getElementById('imageInput');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        const generateBtn = document.getElementById('generateBtn');
+        const statusText = document.getElementById('status');
+        const downloadsContainer = document.getElementById('downloadsContainer');
+        const progressBar = document.getElementById('progressBar');
+        
+        const imgBrightness = document.getElementById('imgBrightness');
+        const imgContrast = document.getElementById('imgContrast');
+        const brightVal = document.getElementById('brightVal');
+        const contrVal = document.getElementById('contrVal');
+
+        const previewBox = document.getElementById('previewBox');
+        const previewSlider = document.getElementById('previewSlider');
+        const previewText = document.getElementById('previewText');
+        
+        let originalImg = null;
+        const size = 500; 
+        const cx = size / 2;
+        const cy = size / 2;
+        const radius = size / 2 - 10; 
+
+        // Хранилище сгенерированных нитей для предпросмотра
+        let generatedSequences = []; 
+        let globalPins = [];
+
+        // --- РЕДАКТОР КАРТИНКИ ---
+        function drawClippedImage() {
+            if (!originalImg) return;
+            const shapeType = document.getElementById('shapeType').value;
+            const brightness = imgBrightness.value;
+            const contrast = imgContrast.value;
+            
+            brightVal.innerText = brightness + '%';
+            contrVal.innerText = contrast + '%';
+
+            ctx.clearRect(0, 0, size, size);
+            ctx.save();
+            ctx.beginPath();
+            
+            // Математика рамок
+            if (shapeType === 'circle') {
+                ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+            } else {
+                let sides = shapeType === 'triangle' ? 3 : shapeType === 'square' ? 4 : shapeType === 'pentagon' ? 5 : shapeType === 'hexagon' ? 6 : 8;
+                for (let i = 0; i < sides; i++) {
+                    let angle = (i * (Math.PI * 2) / sides) - Math.PI / 2;
+                    let px = cx + radius * Math.cos(angle);
+                    let py = cy + radius * Math.sin(angle);
+                    if (i === 0) ctx.moveTo(px, py);
+                    else ctx.lineTo(px, py);
+                }
+                ctx.closePath();
+            }
+            ctx.clip();
+            
+            // Применяем встроенный фильтр холста (Яркость и Контраст)
+            ctx.filter = `brightness(${brightness}%) contrast(${contrast}%)`;
+            ctx.drawImage(originalImg, 0, 0, size, size);
+            ctx.filter = 'none'; 
+            ctx.restore();
+            
+            // Если мы рисуем исходник, прячем блок предпросмотра
+            previewBox.style.display = 'none';
+            generateBtn.disabled = false;
+        }
+
+        imageInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            originalImg = new Image();
+            originalImg.onload = () => {
+                drawClippedImage();
+                statusText.innerText = "Подготовьте фото и жмите Сгенерировать.";
+            };
+            originalImg.src = URL.createObjectURL(file);
+        });
+
+        // Обновляем фото в реальном времени при движении ползунков
+        document.getElementById('shapeType').addEventListener('change', drawClippedImage);
+        imgBrightness.addEventListener('input', drawClippedImage);
+        imgContrast.addEventListener('input', drawClippedImage);
+
+        // Расчет координат гвоздей
+        function getShapePins(type, numPins) {
+            let pins = [];
+            if (type === 'circle') {
+                for (let i = 0; i < numPins; i++) {
+                    let angle = i * (Math.PI * 2) / numPins;
+                    pins.push({ x: Math.round(cx + radius * Math.cos(angle)), y: Math.round(cy + radius * Math.sin(angle)) });
+                }
+            } else {
+                let sides = type === 'triangle' ? 3 : type === 'square' ? 4 : type === 'pentagon' ? 5 : type === 'hexagon' ? 6 : 8;
+                let vertices = [];
+                for (let i = 0; i < sides; i++) {
+                    let angle = (i * (Math.PI * 2) / sides) - Math.PI / 2;
+                    vertices.push({ x: cx + radius * Math.cos(angle), y: cy + radius * Math.sin(angle) });
+                }
+                let pinsPerSide = Math.floor(numPins / sides);
+                for (let i = 0; i < sides; i++) {
+                    let v1 = vertices[i]; let v2 = vertices[(i + 1) % sides];
+                    for (let j = 0; j < pinsPerSide; j++) {
+                        let t = j / pinsPerSide;
+                        pins.push({ x: Math.round(v1.x * (1 - t) + v2.x * t), y: Math.round(v1.y * (1 - t) + v2.y * t) });
+                    }
+                }
+            }
+            return pins;
+        }
+
+        // CMYK и Mono фильтры
+        function extractChannel(imgData, channel) {
+            let data = new Uint8Array(size * size);
+            for (let i = 0; i < imgData.data.length; i += 4) {
+                let r = imgData.data[i] / 255, g = imgData.data[i+1] / 255, b = imgData.data[i+2] / 255;
+                let val = 0;
+                if (channel === 'mono') {
+                    val = 255 - (imgData.data[i]*0.299 + imgData.data[i+1]*0.587 + imgData.data[i+2]*0.114);
+                } else {
+                    let k = 1 - Math.max(r, g, b);
+                    let c = (1 - r - k) / (1 - k) || 0;
+                    let m = (1 - g - k) / (1 - k) || 0;
+                    let y = (1 - b - k) / (1 - k) || 0;
+                    if (channel === 'C') val = c * 255; else if (channel === 'M') val = m * 255; else if (channel === 'Y') val = y * 255; else if (channel === 'K') val = k * 255;
+                }
+                data[i/4] = val;
+            }
+            return data;
+        }
+
+        // Брезенхем для пикселей линии
+        function getLinePixels(x0, y0, x1, y1) {
+            let pixels = [];
+            let dx = Math.abs(x1 - x0), dy = Math.abs(y1 - y0);
+            let sx = (x0 < x1) ? 1 : -1, sy = (y0 < y1) ? 1 : -1; let err = dx - dy;
+            while(true) {
+                pixels.push({x: x0, y: y0});
+                if (x0 === x1 && y0 === y1) break;
+                let e2 = 2 * err;
+                if (e2 > -dy) { err -= dy; x0 += sx; }
+                if (e2 < dx) { err += dx; y0 += sy; }
+            }
+            return pixels;
+        }
+
+        // АЛГОРИТМ И G-CODE
+        async function runStringArt(channelName, pins, numLines, printSize, zHop, drawColor) {
+            const imgDataObj = ctx.getImageData(0, 0, size, size);
+            let channelMap = extractChannel(imgDataObj, channelName);
+            
+            let currentPin = 0;
+            let lineSequence = [currentPin];
+
+            ctx.clearRect(0,0,size,size); 
+
+            // Считаем нити
+            for (let l = 0; l < numLines; l++) {
+                let bestNextPin = -1, bestScore = -1, bestPixels = [];
+
+                for (let p = 0; p < pins.length; p++) {
+                    if (p === currentPin) continue;
+                    let dist = Math.abs(p - currentPin);
+                    if (dist < 10 || dist > pins.length - 10) continue;
+
+                    let pixels = getLinePixels(pins[currentPin].x, pins[currentPin].y, pins[p].x, pins[p].y);
+                    let score = 0;
+                    for (let px of pixels) {
+                        if(px.x >= 0 && px.x < size && px.y >= 0 && px.y < size) {
+                            score += channelMap[px.y * size + px.x];
+                        }
+                    }
+                    score /= pixels.length;
+
+                    if (score > bestScore) { bestScore = score; bestNextPin = p; bestPixels = pixels; }
+                }
+
+                // Осветляем линию на холсте (убираем уже нарисованное)
+                for (let px of bestPixels) {
+                    if(px.x >= 0 && px.x < size && px.y >= 0 && px.y < size) {
+                        channelMap[px.y * size + px.x] = Math.max(0, channelMap[px.y * size + px.x] - 25); 
+                    }
+                }
+
+                // Рисуем процесс
+                ctx.beginPath();
+                ctx.moveTo(pins[currentPin].x, pins[currentPin].y);
+                ctx.lineTo(pins[bestNextPin].x, pins[bestNextPin].y);
+                ctx.strokeStyle = drawColor;
+                ctx.stroke();
+
+                currentPin = bestNextPin;
+                lineSequence.push(currentPin);
+
+                if (l % 50 === 0) {
+                    let percent = Math.round((l / numLines) * 100);
+                    progressBar.value = percent;
+                    statusText.innerText = `[${channelName.toUpperCase()}] Расчет нитей: ${l} / ${numLines}`;
+                    await new Promise(r => setTimeout(r, 0)); 
+                }
+            }
+
+            // Сохраняем для предпросмотра
+            generatedSequences.push({ color: drawColor, sequence: lineSequence });
+
+            // ГЕНЕРАЦИЯ G-CODE
+            let gcode = `; String Art 3D Print - ${channelName}\n`;
+            gcode += "G28 ; Home\nG90 ; Absolute coords\nM82 ; Absolute extrusion\nG92 E0\n";
+            
+            let currentE = 0;
+            let extMult = 0.03; // Расход пластика
+            
+            // --- ПЕЧАТЬ РАМКИ ПЕРИМЕТРА (ДЛЯ СЦЕПКИ) ---
+            gcode += "\n; --- Печать укрепляющей рамки (периметра) ---\n";
+            gcode += "G1 Z0.2 F1000\n";
+            
+            // Обходим фигуру по гвоздям 3 раза, чтобы получилась толстая стенка-якорь
+            for(let loop = 0; loop < 3; loop++) {
+                for (let p = 0; p <= pins.length; p++) {
+                    let pinIdx = p % pins.length; // Замыкаем контур в конце
+                    let xMM = (pins[pinIdx].x / size) * printSize;
+                    let yMM = (pins[pinIdx].y / size) * printSize;
+                    
+                    if (p === 0 && loop === 0) {
+                        gcode += `G1 X${xMM.toFixed(2)} Y${yMM.toFixed(2)} F3000\n`;
+                    } else {
+                        let prevIdx = (p - 1 + pins.length) % pins.length;
+                        let prevX = (pins[prevIdx].x / size) * printSize;
+                        let prevY = (pins[prevIdx].y / size) * printSize;
+                        let dist = Math.sqrt(Math.pow(xMM - prevX, 2) + Math.pow(yMM - prevY, 2));
+                        currentE += dist * extMult * 1.5; // Чуть больше пластика для рамки
+                        gcode += `G1 X${xMM.toFixed(2)} Y${yMM.toFixed(2)} E${currentE.toFixed(3)} F1500\n`;
+                    }
+                }
+            }
+            gcode += "; --- Конец рамки ---\n\n";
+
+            // --- ПЕЧАТЬ САМОЙ КАРТИНЫ (НИТЕЙ) ---
+            let currentZ = 0.2;
+            for (let i = 0; i < lineSequence.length; i++) {
+                let pinIdx = lineSequence[i];
+                let xMM = (pins[pinIdx].x / size) * printSize;
+                let yMM = (pins[pinIdx].y / size) * printSize;
+
+                if (i === 0) {
+                    gcode += `G1 X${xMM.toFixed(2)} Y${yMM.toFixed(2)} F3000\n`;
+                } else {
+                    let prevIdx = lineSequence[i-1];
+                    let prevX = (pins[prevIdx].x / size) * printSize;
+                    let prevY = (pins[prevIdx].y / size) * printSize;
+                    let dist = Math.sqrt(Math.pow(xMM - prevX, 2) + Math.pow(yMM - prevY, 2));
+                    currentE += dist * extMult;
+                    currentZ += zHop; // Поднимаем Z, чтобы не задеть перекрестия
+
+                    gcode += `G1 X${xMM.toFixed(2)} Y${yMM.toFixed(2)} Z${currentZ.toFixed(3)} E${currentE.toFixed(3)} F2500\n`;
+                }
+            }
+            
+            gcode += "G92 E0\nG1 E-3 F1000\nG28 X Y\nM84\n";
+            return gcode;
+        }
+
+        function createDownloadBtn(gcode, label, className) {
+            const btn = document.createElement('button');
+            btn.className = `download-btn ${className}`;
+            btn.innerText = `Скачать G-Code (${label})`;
+            btn.onclick = () => {
+                const blob = new Blob([gcode], {type: "text/plain"});
+                const a = document.createElement("a");
+                a.href = URL.createObjectURL(blob);
+                a.download = `string_art_${label}.gcode`;
+                a.click();
+            };
+            downloadsContainer.appendChild(btn);
+        }
+
+        // --- ЛОГИКА ПРЕДПРОСМОТРА ---
+        function renderPreview(stepIndex) {
+            ctx.clearRect(0, 0, size, size);
+            
+            // Если включен CMYK, рисуем все каналы пропорционально шагу
+            for (let obj of generatedSequences) {
+                let seq = obj.sequence;
+                let linesToDraw = Math.floor(seq.length * (stepIndex / 100)); // Шаг в процентах
+                
+                ctx.beginPath();
+                ctx.strokeStyle = obj.color;
+                
+                if (linesToDraw > 0) {
+                    ctx.moveTo(globalPins[seq[0]].x, globalPins[seq[0]].y);
+                    for (let i = 1; i < linesToDraw; i++) {
+                        ctx.lineTo(globalPins[seq[i]].x, globalPins[seq[i]].y);
+                    }
+                }
+                ctx.stroke();
+            }
+        }
+
+        previewSlider.addEventListener('input', (e) => {
+            let percent = e.target.value;
+            previewText.innerText = percent + "%";
+            renderPreview(percent);
+        });
+
+        // --- ГЛАВНЫЙ ЗАПУСК ---
+        generateBtn.addEventListener('click', async () => {
+            generateBtn.disabled = true;
+            downloadsContainer.innerHTML = ''; 
+            generatedSequences = []; // Очищаем старые данные
+            
+            progressBar.style.display = 'block'; 
+            progressBar.value = 0;
+            
+            // Подготавливаем холст с эффектами
+            drawClippedImage();
+
+            const shapeType = document.getElementById('shapeType').value;
+            const colorMode = document.getElementById('colorMode').value;
+            const numPins = parseInt(document.getElementById('numPins').value);
+            const numLines = parseInt(document.getElementById('numLines').value);
+            const printSize = parseFloat(document.getElementById('printSize').value);
+            const zHop = parseFloat(document.getElementById('zHop').value);
+
+            globalPins = getShapePins(shapeType, numPins);
+
+            if (colorMode === 'mono') {
+                let gcode = await runStringArt('mono', globalPins, numLines, printSize, zHop, 'rgba(0,0,0,0.15)');
+                createDownloadBtn(gcode, 'MONO', 'btn-mono');
+            } else {
+                // CMYK цвета подобраны для хорошей визуализации на экране (с прозрачностью)
+                let cmykChannels = [
+                    { id: 'C', color: 'rgba(0, 174, 239, 0.15)' },
+                    { id: 'M', color: 'rgba(236, 0, 140, 0.15)' },
+                    { id: 'Y', color: 'rgba(255, 242, 0, 0.15)' },
+                    { id: 'K', color: 'rgba(34, 34, 34, 0.15)' }
+                ];
+                
+                for (let ch of cmykChannels) {
+                    drawClippedImage(); 
+                    let gcode = await runStringArt(ch.id, globalPins, numLines, printSize, zHop, ch.color);
+                    createDownloadBtn(gcode, ch.id, `btn-${ch.id.toLowerCase()}`);
+                }
+            }
+
+            // Настройка и отображение предпросмотра
+            progressBar.style.display = 'none'; 
+            statusText.innerText = "Генерация завершена. Можете посмотреть результат или скачать файлы.";
+            generateBtn.disabled = false;
+            
+            // Включаем предпросмотр
+            previewBox.style.display = 'block';
+            previewSlider.value = 100;
+            previewText.innerText = "100%";
+            renderPreview(100);
+        });
+    </script>
+</body>
+</html>
