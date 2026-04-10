@@ -1,5 +1,3 @@
-Since you are moving toward a professional or international release, here is the official name, description, and application list in English.
-
 🏷️ Proposed Names
 G-Weaver 3D (Professional & Technical)
 
